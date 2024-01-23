@@ -45,7 +45,7 @@ CREATE TABLE  TRIP_DETAILS (
    Taxi_id integer,
    Strt_time DATE,
    End_time DATE,
-   Trip_duration INTERVAL DAY TO SECOND,
+   Trip_duration INTERVAL,
    Trip_description VARCHAR(140),
    PRIMARY KEY (Trip_id)
 );
