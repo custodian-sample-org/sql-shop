@@ -43,9 +43,10 @@ CREATE TABLE  TRIP_DETAILS (
    Driver_id integer,
    Usr_id integer,
    Taxi_id integer,
-   Strt_time TIMESTAMP,
-   End_time TIMESTAMP,
+   Strt_time DATE,
+   End_time DATE,
    Trip_duration INTERVAL DAY TO SECOND,
+   Trip_description VARCHAR(140),
    PRIMARY KEY (Trip_id)
 );
 
@@ -133,7 +134,7 @@ ALTER TABLE TAXI_SERVICE_COMPANY ADD CONSTRAINT fketscowns FOREIGN KEY (Owner_id
 INSERT INTO TAXI VALUES(1,'KA-15R-3367','BENZE 300',to_date('01/01/2017','mm/dd/yyyy'),'SUV','Available',1);
 INSERT INTO DRIVER VALUES(1,'Abhi','Gowda','Male','4693805870',5,25);
 INSERT INTO USER_TBL VALUES(1,'USER1','LNAME','123456','Male','MCCAllum','1');
-INSERT INTO TRIP_DETAILS VALUES(1,to_date('01/01/2017','mm/dd/yyyy'),123,1,1,1,TO_TIMESTAMP('2017-01-01 06:14:00', 'YYYY-MM-DD HH24:MI:SS'),TO_TIMESTAMP('2017-01-01 08:14:00', 'YYYY-MM-DD HH24:MI:SS'), TO_TIMESTAMP('2017-01-01 08:14:00', 'YYYY-MM-DD HH24:MI:SS')-TO_TIMESTAMP('2017-01-01 06:14:00', 'YYYY-MM-DD HH24:MI:SS'));
+INSERT INTO TRIP_DETAILS VALUES(1,to_date('01/01/2017','mm/dd/yyyy'),123,1,1,1,TO_DATE('2017-01-01 06:14:00', 'YYYY-MM-DD HH24:MI:SS'),TO_DATE('2017-01-01 08:14:00', 'YYYY-MM-DD HH24:MI:SS'),null);
 INSERT INTO BILL_DETAILS VALUES(1,to_date('01/01/2017','mm/dd/yyyy'),1000.10,20.11,null,1,1);
 INSERT INTO CUSTOMER_SERVICE VALUES(1,'prashuk','ajmera');
 INSERT INTO CUSTOMER_SERVICE VALUES(1,'abhi','gowda');
@@ -157,6 +158,7 @@ CREATE OR REPLACE PROCEDURE BOOK_TAXI
 , Taxi_Model IN VARCHAR2
 , v_Gender IN VARCHAR2
 , Advance IN decimal
+, Booked_at IN VARCHAR2
 )
 AS
 v_usr_id INT :=-1;
@@ -171,7 +173,7 @@ select MAX(Bill_no)+1 into v_Bill_no from BILL_DETAILS ;
 select taxi_id, Driver_id  into v_Taxi_id,v_Driver_id from TAXI  where Status = 'Available' and Taxi_Model = Taxi_Model;
 
 INSERT INTO USER_TBL values(v_usr_id, SUBSTR (Name, 1, INSTR(Name,' ',1)),SUBSTR (Name, INSTR(Name,' ',1)+1,LENGTH(Name)),v_Contact,v_Gender,v_Address,v_Taxi_id);
-INSERT INTO TRIP_DETAILS values(v_Trip_id,sysdate, 50,v_Driver_id,v_usr_id,v_Taxi_id,sysdate,null, null);
+INSERT INTO TRIP_DETAILS values(v_Trip_id,to_date(Booked_at), 50,v_Driver_id,v_usr_id,v_Taxi_id,to_date(Booked_at),null, null);
 INSERT INTO BILL_DETAILS values(v_Bill_no,null,Advance,null,null,v_usr_id,v_Trip_id);
 
 END;
@@ -183,13 +185,13 @@ END;
 
 CREATE OR REPLACE PROCEDURE TRIP_END(v_trip IN INT , v_discount IN Decimal )
 AS
-v_total_time INT := -1;
+v_total_minutes INT := -1;
 v_bill_no INT :=-1;
 BEGIN
-select extract(day from (sysdate - Strt_time))*24 + extract(hour from (sysdate - Strt_time))   into v_total_time from TRIP_DETAILS where Trip_id = v_trip;
+select (sysdate - Strt_time) * 24 * 60 * 60 into v_total_minutes from TRIP_DETAILS where Trip_id = v_trip;
 
 update TRIP_DETAILS set End_time = sysdate, Trip_duration = v_total_time where Trip_id = Trip_id ;
-update BILL_DETAILS set Bill_date = sysdate , Discount_amt = v_discount ,Total_amt = (v_total_time * 15) - v_discount where Trip_id = v_trip  ;
+update BILL_DETAILS set Bill_date = sysdate , Discount_amt = v_discount ,Total_amt = (v_total_minutes * 15) - v_discount where Trip_id = v_trip  ;
 END ;
 
 ---------------------------------------------
@@ -207,7 +209,6 @@ BEGIN
    
    update DRIVER set Rating = Rating -1 where   driver_id = v_driver_id;
 END; 
-/
 
 ---------------------------------------------
 -- Trigger  Creation 2
@@ -221,4 +222,3 @@ BEGIN
    select count(Taxi_id) into v_no_of_cars from OWNER_TAXI where Owner_id = :NEW.Owner_id group by Owner_id;
    :NEW.No_Cars := v_no_of_cars;
 END;
-/
